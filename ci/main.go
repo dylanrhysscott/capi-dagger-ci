@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 )
 
 type CapiDaggerCi struct {
@@ -77,6 +78,7 @@ func (m *CapiDaggerCi) DeployInfra(
 		WithEnvVariable("AWS_ACCESS_KEY_ID", spacesAccessKeyCleartext).
 		WithEnvVariable("AWS_SECRET_ACCESS_KEY", spacesSecretKeyCleartext).
 		WithEnvVariable("DIGITALOCEAN_TOKEN", tokenCleartext).
+		WithEnvVariable("CACHEBUSTER", time.Now().String()). // https://archive.docs.dagger.io/0.9/cookbook/#invalidate-cache - cache invalidation not yet supported :(
 		WithExec([]string{"init"}).
 		WithExec(planOpts)
 	if apply {
@@ -112,5 +114,6 @@ func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (*Co
 		WithExec([]string{"mv", "doctl", "/root/.kube/doctl"}).
 		WithExec([]string{"curl", "-L", "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/clusterctl-linux-amd64", "-o", "/usr/bin/clusterctl"}).
 		WithExec([]string{"chmod", "+x", "/usr/bin/clusterctl", "/root/.kube/doctl"}).
+		WithEnvVariable("CACHEBUSTER", time.Now().String()). // https://archive.docs.dagger.io/0.9/cookbook/#invalidate-cache - cache invalidation not yet supported :(
 		WithExec([]string{"clusterctl", "init", "--kubeconfig", kubeconfigPath, "--infrastructure", "digitalocean"}), nil
 }
