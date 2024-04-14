@@ -84,10 +84,7 @@ func (m *CapiDaggerCi) DeployInfra(
 }
 
 // Installs CAPI into given DOCluster
-func (m *CapiDaggerCi) InstallCAPI(
-	ctx context.Context,
-	clusterName string,
-	arch string) (*Container, error) {
+func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (*Container, error) {
 	kubeconfigPath := "/root/.kube/config"
 	tokenCleartext, _, _, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
