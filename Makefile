@@ -1,5 +1,4 @@
 deploy-plan:
-	source secrets.env
 	dagger call \
 		with-docreds \
 				--token=env:DIGITALOCEAN_ACCESS_TOKEN \
@@ -11,7 +10,6 @@ deploy-plan:
 				stdout
 
 deploy-infra:
-	source secrets.env
 	dagger call \
 		with-docreds \
 				--token=env:DIGITALOCEAN_ACCESS_TOKEN \
@@ -22,7 +20,6 @@ deploy-infra:
 				stdout
 
 install-capi:
-	source secrets.env
 	dagger call \
 		with-docreds \
 				--token=env:DIGITALOCEAN_ACCESS_TOKEN \
@@ -33,7 +30,6 @@ install-capi:
 				stdout
 
 destroy-plan:
-	source secrets.env
 	dagger call \
 		with-docreds \
 				--token=env:DIGITALOCEAN_ACCESS_TOKEN \
@@ -46,7 +42,6 @@ destroy-plan:
 				stdout
 
 destroy-infra:
-	source secrets.env
 	dagger call \
 		with-docreds \
 				--token=env:DIGITALOCEAN_ACCESS_TOKEN \
