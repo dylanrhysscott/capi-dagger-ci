@@ -59,10 +59,10 @@ func (m *CapiDaggerCi) DeployInfra(
 	apply bool,
 	// +optional
 	// +default=false
-	destroy bool) (string, error) {
+	destroy bool) (*Container, error) {
 	tokenCleartext, spacesAccessKeyCleartext, spacesSecretKeyCleartext, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed getting pipeline creds: %s", err)
+		return nil, fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
 	planOpts := []string{"plan", "-out", "server.plan"}
 	if destroy {
@@ -80,30 +80,25 @@ func (m *CapiDaggerCi) DeployInfra(
 	if apply {
 		authenticatedTerraform = authenticatedTerraform.WithExec([]string{"apply", "server.plan"})
 	}
-
-	out, err := authenticatedTerraform.Stdout(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed deploying infra: %s", err)
-	}
-	return out, nil
+	return authenticatedTerraform, nil
 }
 
 // Installs CAPI into given DOCluster
-func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (string, error) {
+func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (*Container, error) {
 	kubeconfigPath := "/root/.kube/config"
 	tokenCleartext, _, _, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed getting pipeline creds: %s", err)
+		return nil, fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
 	getKubeconfig := dag.Container().
 		From("digitalocean/doctl:1.105.0").
 		WithEnvVariable("DIGITALOCEAN_ACCESS_TOKEN", tokenCleartext).
 		WithExec([]string{"kubernetes", "cluster", "kubeconfig", "save", clusterName})
 	if err != nil {
-		return "", fmt.Errorf("failed getting cluster config: %s", err)
+		return nil, fmt.Errorf("failed getting cluster config: %s", err)
 	}
 	capiCreds := base64.StdEncoding.EncodeToString([]byte(tokenCleartext))
-	capiInstall, err := dag.Container().
+	return dag.Container().
 		From("alpine:latest").
 		WithFile(kubeconfigPath, getKubeconfig.File(kubeconfigPath)).
 		WithEnvVariable("DIGITALOCEAN_ACCESS_TOKEN", tokenCleartext).
@@ -115,11 +110,5 @@ func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (str
 		WithExec([]string{"mv", "doctl", "/root/.kube/doctl"}).
 		WithExec([]string{"curl", "-L", "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/clusterctl-linux-arm64", "-o", "/usr/bin/clusterctl"}).
 		WithExec([]string{"chmod", "+x", "/usr/bin/clusterctl", "/root/.kube/doctl"}).
-		WithExec([]string{"clusterctl", "init", "--kubeconfig", kubeconfigPath, "--infrastructure", "digitalocean"}).
-		Stdout(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed installing CAPI: %s", err)
-	}
-
-	return capiInstall, nil
+		WithExec([]string{"clusterctl", "init", "--kubeconfig", kubeconfigPath, "--infrastructure", "digitalocean"}), nil
 }
