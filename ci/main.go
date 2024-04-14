@@ -29,6 +29,9 @@ func (m *CapiDaggerCi) DeployInfra(
 	spacesAccessKey *Secret,
 	spacesSecretKey *Secret,
 	// +optional
+	// +default=true
+	apply bool,
+	// +optional
 	// +default=false
 	destroy bool) (string, error) {
 	tokenCleartext, err := token.Plaintext(ctx)
@@ -47,7 +50,7 @@ func (m *CapiDaggerCi) DeployInfra(
 	if destroy {
 		planOpts = append(planOpts, "--destroy")
 	}
-	out, err := dag.Container().
+	authenticatedTerraform := dag.Container().
 		From("hashicorp/terraform:latest").
 		WithDirectory("/infra", &path).
 		WithWorkdir("/infra").
@@ -55,9 +58,12 @@ func (m *CapiDaggerCi) DeployInfra(
 		WithEnvVariable("AWS_SECRET_ACCESS_KEY", spacesSecretKeyCleartext).
 		WithEnvVariable("DIGITALOCEAN_TOKEN", tokenCleartext).
 		WithExec([]string{"init"}).
-		WithExec(planOpts).
-		WithExec([]string{"apply", "server.plan"}).
-		Stdout(ctx)
+		WithExec(planOpts)
+	if apply {
+		authenticatedTerraform = authenticatedTerraform.WithExec([]string{"apply", "server.plan"})
+	}
+
+	out, err := authenticatedTerraform.Stdout(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed deploying infra: %s", err)
 	}
