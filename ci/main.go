@@ -84,7 +84,10 @@ func (m *CapiDaggerCi) DeployInfra(
 }
 
 // Installs CAPI into given DOCluster
-func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (*Container, error) {
+func (m *CapiDaggerCi) InstallCAPI(
+	ctx context.Context,
+	clusterName string,
+	arch string) (*Container, error) {
 	kubeconfigPath := "/root/.kube/config"
 	tokenCleartext, _, _, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
@@ -105,10 +108,10 @@ func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (*Co
 		WithEnvVariable("DO_B64ENCODED_CREDENTIALS", capiCreds).
 		WithExec([]string{"apk", "update"}).
 		WithExec([]string{"apk", "add", "curl"}).
-		WithExec([]string{"curl", "-L", "https://github.com/digitalocean/doctl/releases/download/v1.105.0/doctl-1.105.0-linux-arm64.tar.gz", "-o", "doctl-1.105.0-linux-arm64.tar.gz"}).
-		WithExec([]string{"tar", "xf", "doctl-1.105.0-linux-arm64.tar.gz"}).
+		WithExec([]string{"curl", "-L", "https://github.com/digitalocean/doctl/releases/download/v1.105.0/doctl-1.105.0-linux-amd64.tar.gz", "-o", "doctl-1.105.0-linux-amd64.tar.gz"}).
+		WithExec([]string{"tar", "xf", "doctl-1.105.0-linux-amd64.tar.gz"}).
 		WithExec([]string{"mv", "doctl", "/root/.kube/doctl"}).
-		WithExec([]string{"curl", "-L", "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/clusterctl-linux-arm64", "-o", "/usr/bin/clusterctl"}).
+		WithExec([]string{"curl", "-L", "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/clusterctl-linux-amd64", "-o", "/usr/bin/clusterctl"}).
 		WithExec([]string{"chmod", "+x", "/usr/bin/clusterctl", "/root/.kube/doctl"}).
 		WithExec([]string{"clusterctl", "init", "--kubeconfig", kubeconfigPath, "--infrastructure", "digitalocean"}), nil
 }
