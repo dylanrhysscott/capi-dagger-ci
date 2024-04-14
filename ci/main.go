@@ -22,7 +22,15 @@ import (
 type CapiDaggerCi struct{}
 
 // Runs terraform init, plan and apply to deploy infrastructure
-func (m *CapiDaggerCi) DeployInfra(ctx context.Context, path Directory, token *Secret, spacesAccessKey *Secret, spacesSecretKey *Secret) (string, error) {
+func (m *CapiDaggerCi) DeployInfra(
+	ctx context.Context,
+	path Directory,
+	token *Secret,
+	spacesAccessKey *Secret,
+	spacesSecretKey *Secret,
+	// +optional
+	// +default=false
+	destroy bool) (string, error) {
 	tokenCleartext, err := token.Plaintext(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed getting token: %s", err)
@@ -35,6 +43,10 @@ func (m *CapiDaggerCi) DeployInfra(ctx context.Context, path Directory, token *S
 	if err != nil {
 		return "", fmt.Errorf("failed getting spaces secret key: %s", err)
 	}
+	planOpts := []string{"plan", "-out", "server.plan"}
+	if destroy {
+		planOpts = append(planOpts, "--destroy")
+	}
 	out, err := dag.Container().
 		From("hashicorp/terraform:latest").
 		WithDirectory("/infra", &path).
@@ -43,7 +55,7 @@ func (m *CapiDaggerCi) DeployInfra(ctx context.Context, path Directory, token *S
 		WithEnvVariable("AWS_SECRET_ACCESS_KEY", spacesSecretKeyCleartext).
 		WithEnvVariable("DIGITALOCEAN_TOKEN", tokenCleartext).
 		WithExec([]string{"init"}).
-		WithExec([]string{"plan", "-out", "server.plan"}).
+		WithExec(planOpts).
 		WithExec([]string{"apply", "server.plan"}).
 		Stdout(ctx)
 	if err != nil {
