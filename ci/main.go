@@ -20,32 +20,49 @@ import (
 	"fmt"
 )
 
-type CapiDaggerCi struct{}
+type CapiDaggerCi struct {
+	Token           *Secret
+	SpacesAccessKey *Secret
+	SpacesSecretKey *Secret
+}
+
+// Sets up the DO account credentials for subsquent functions
+func (m *CapiDaggerCi) WithDOCreds(ctx context.Context, token *Secret, spacesAccessKey *Secret, spacesSecretKey *Secret) (*CapiDaggerCi, error) {
+	m.Token = token
+	m.SpacesAccessKey = spacesAccessKey
+	m.SpacesSecretKey = spacesSecretKey
+	return m, nil
+}
+
+func (m CapiDaggerCi) fetchPipelineCreds(ctx context.Context) (string, string, string, error) {
+	tokenCleartext, err := m.Token.Plaintext(ctx)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed getting token: %s", err)
+	}
+	spacesAccessKeyCleartext, err := m.SpacesAccessKey.Plaintext(ctx)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed getting spaces access key: %s", err)
+	}
+	spacesSecretKeyCleartext, err := m.SpacesSecretKey.Plaintext(ctx)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed getting spaces secret key: %s", err)
+	}
+	return tokenCleartext, spacesAccessKeyCleartext, spacesSecretKeyCleartext, nil
+}
 
 // Runs terraform init, plan and apply to deploy infrastructure
 func (m *CapiDaggerCi) DeployInfra(
 	ctx context.Context,
 	path Directory,
-	token *Secret,
-	spacesAccessKey *Secret,
-	spacesSecretKey *Secret,
 	// +optional
 	// +default=true
 	apply bool,
 	// +optional
 	// +default=false
 	destroy bool) (string, error) {
-	tokenCleartext, err := token.Plaintext(ctx)
+	tokenCleartext, spacesAccessKeyCleartext, spacesSecretKeyCleartext, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed getting token: %s", err)
-	}
-	spacesAccessKeyCleartext, err := spacesAccessKey.Plaintext(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed getting spaces access key: %s", err)
-	}
-	spacesSecretKeyCleartext, err := spacesSecretKey.Plaintext(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed getting spaces secret key: %s", err)
+		return "", fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
 	planOpts := []string{"plan", "-out", "server.plan"}
 	if destroy {
@@ -72,11 +89,11 @@ func (m *CapiDaggerCi) DeployInfra(
 }
 
 // Installs CAPI into given DOCluster
-func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, token *Secret, clusterName string) (string, error) {
+func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, clusterName string) (string, error) {
 	kubeconfigPath := "/root/.kube/config"
-	tokenCleartext, err := token.Plaintext(ctx)
+	tokenCleartext, _, _, err := m.fetchPipelineCreds(ctx)
 	if err != nil {
-		return "", fmt.Errorf("failed getting token: %s", err)
+		return "", fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
 	getKubeconfig := dag.Container().
 		From("digitalocean/doctl:1.105.0").
