@@ -1,0 +1,6 @@
+{
+  "name": "capi-dagger-ci",
+  "sdk": "go",
+  "source": "ci",
+  "engineVersion": "v0.11.0"
+}
