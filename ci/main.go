@@ -65,8 +65,10 @@ func (m *CapiDaggerCi) DeployInfra(
 		return nil, fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
 	planOpts := []string{"plan"}
+	applyOpts := []string{"apply", "-auto-approve"}
 	if destroy {
 		planOpts = append(planOpts, "--destroy")
+		applyOpts = append(applyOpts, "--destroy")
 	}
 	authenticatedTerraform := dag.Container().
 		From("hashicorp/terraform:latest").
@@ -78,7 +80,7 @@ func (m *CapiDaggerCi) DeployInfra(
 		WithExec([]string{"init"}).
 		WithExec(planOpts)
 	if apply {
-		authenticatedTerraform = authenticatedTerraform.WithExec([]string{"apply", "-auto-approve"})
+		authenticatedTerraform = authenticatedTerraform.WithExec(applyOpts)
 	}
 	return authenticatedTerraform, nil
 }
