@@ -24,7 +24,20 @@ terraform {
 provider "digitalocean" {}
 
 resource "digitalocean_vpc" "vpc" {
-  name     = "capi-vpc-demo"
-  region   = "lon1"
-  ip_range = "10.0.0.0/24"
+  name     = var.name
+  region   = var.region
+  ip_range = var.vpc_range
+}
+
+resource "digitalocean_kubernetes_cluster" "cluster" {
+  name   = var.name
+  region = var.region
+  version = var.doks_version
+  vpc_uuid = digitalocean_vpc.vpc.id
+
+  node_pool {
+    name       = "${var.name}-pool"
+    size       = var.doks_node_pool_size
+    node_count = var.doks_node_count
+  }
 }

@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 )
 
@@ -68,4 +69,40 @@ func (m *CapiDaggerCi) DeployInfra(
 		return "", fmt.Errorf("failed deploying infra: %s", err)
 	}
 	return out, nil
+}
+
+// Installs CAPI into given DOCluster
+func (m *CapiDaggerCi) InstallCAPI(ctx context.Context, token *Secret, clusterName string) (string, error) {
+	kubeconfigPath := "/root/.kube/config"
+	tokenCleartext, err := token.Plaintext(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed getting token: %s", err)
+	}
+	getKubeconfig := dag.Container().
+		From("digitalocean/doctl:1.105.0").
+		WithEnvVariable("DIGITALOCEAN_ACCESS_TOKEN", tokenCleartext).
+		WithExec([]string{"kubernetes", "cluster", "kubeconfig", "save", clusterName})
+	if err != nil {
+		return "", fmt.Errorf("failed getting cluster config: %s", err)
+	}
+	capiCreds := base64.StdEncoding.EncodeToString([]byte(tokenCleartext))
+	capiInstall, err := dag.Container().
+		From("alpine:latest").
+		WithFile(kubeconfigPath, getKubeconfig.File(kubeconfigPath)).
+		WithEnvVariable("DIGITALOCEAN_ACCESS_TOKEN", tokenCleartext).
+		WithEnvVariable("DO_B64ENCODED_CREDENTIALS", capiCreds).
+		WithExec([]string{"apk", "update"}).
+		WithExec([]string{"apk", "add", "curl"}).
+		WithExec([]string{"curl", "-L", "https://github.com/digitalocean/doctl/releases/download/v1.105.0/doctl-1.105.0-linux-arm64.tar.gz", "-o", "doctl-1.105.0-linux-arm64.tar.gz"}).
+		WithExec([]string{"tar", "xf", "doctl-1.105.0-linux-arm64.tar.gz"}).
+		WithExec([]string{"mv", "doctl", "/root/.kube/doctl"}).
+		WithExec([]string{"curl", "-L", "https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.6.3/clusterctl-linux-arm64", "-o", "/usr/bin/clusterctl"}).
+		WithExec([]string{"chmod", "+x", "/usr/bin/clusterctl", "/root/.kube/doctl"}).
+		WithExec([]string{"clusterctl", "init", "--kubeconfig", kubeconfigPath, "--infrastructure", "digitalocean"}).
+		Stdout(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed installing CAPI: %s", err)
+	}
+
+	return capiInstall, nil
 }
