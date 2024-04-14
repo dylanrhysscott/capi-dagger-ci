@@ -64,7 +64,7 @@ func (m *CapiDaggerCi) DeployInfra(
 	if err != nil {
 		return nil, fmt.Errorf("failed getting pipeline creds: %s", err)
 	}
-	planOpts := []string{"plan", "-out", "server.plan"}
+	planOpts := []string{"plan"}
 	if destroy {
 		planOpts = append(planOpts, "--destroy")
 	}
@@ -78,7 +78,7 @@ func (m *CapiDaggerCi) DeployInfra(
 		WithExec([]string{"init"}).
 		WithExec(planOpts)
 	if apply {
-		authenticatedTerraform = authenticatedTerraform.WithExec([]string{"apply", "server.plan"})
+		authenticatedTerraform = authenticatedTerraform.WithExec([]string{"apply", "-auto-approve"})
 	}
 	return authenticatedTerraform, nil
 }
